@@ -1,0 +1,308 @@
+# TELEGRAM DISPATCHER PLATFORM
+# PROJECT PLAN + PRODUCT RULES
+# FORMAT: .mdc
+# STATUS: FINAL v1.1 (WITH RUSSIAN GUIDANCE)
+# SINGLE SOURCE OF TRUTH
+
+---
+
+## 0. Purpose of This Document
+### 📌 Подсказка (RU)
+Это **главный файл проекта**.  
+Если возникает спор, вопрос или непонимание — **смотрим сюда**.
+
+---
+
+This file is the **single source of truth** for the entire project.
+
+It fully defines:
+- product rules
+- system behavior
+- user roles
+- order lifecycle
+- admin visibility
+- error handling
+- documentation requirements
+- full development roadmap
+
+❗ Any implementation **must strictly follow this document**.  
+❗ Any deviation requires explicit re-approval and document update.
+
+---
+
+## 1. Global Engineering Rules
+### 📌 Подсказка (RU)
+Эти правила объясняют **КАК мы работаем**, а не что именно делаем.
+
+- Stage-by-stage execution only  
+  👉 Работаем строго по этапам, без прыжков
+- No skipping stages  
+  👉 Нельзя перескакивать этапы
+- No implementation before documentation  
+  👉 Сначала описываем, потом пишем код
+- Any requirement change:
+  - impacts stages
+  - requires document update  
+  👉 Любое изменение требований = правка этого файла
+- Documentation is part of the product  
+  👉 Документация обязательна, как и код
+- Safety > speed at all times  
+  👉 Безопасность аккаунта важнее скорости
+- Deterministic behavior only  
+  👉 Никакой «магии» и скрытой логики
+
+---
+
+## 2. Roles & Access Levels
+### 📌 Подсказка (RU)
+Кто есть кто в системе и что ему можно.
+
+---
+
+### 2.1 Dispatcher
+📌 **Это основной пользователь системы**
+
+- Authorizes via QR-code (Telethon)  
+  👉 Входит через QR, как живой аккаунт
+- Sends messages as **user account**  
+  👉 Пишет в группы от своего аккаунта
+- Manages own groups, regions, scenarios  
+  👉 Сам настраивает группы и регионы
+- Creates, edits, cancels, closes orders  
+- Receives and assigns driver responses  
+
+---
+
+### 2.2 Driver
+📌 **Обычный водитель из групп**
+
+- Receives orders in groups
+- Responds with:
+  - “я”
+  - any reply to order message
+- Does NOT interact with bot directly  
+  👉 Он не пишет боту, только в группе
+
+---
+
+### 2.3 Project Admin (one or many)
+📌 **Владелец / администратор платформы**
+
+- Defined by Telegram ID whitelist
+- Has full read-access to entire system
+- Sees:
+  - all dispatchers
+  - all orders
+  - all responses
+  - all assignments
+  - all logs and errors
+- Receives **all logged errors**
+
+👉 Админ всё видит, но не мешает работе диспетчера
+
+---
+
+## 3. Core Principles
+### 📌 Подсказка (RU)
+Фундаментальные принципы, которые **нельзя нарушать**.
+
+- Telethon-first (dispatcher user account)
+- Bot = control panel, not sender
+- Explicit confirmations for destructive actions
+- One order = one immutable history
+- Everything is logged
+- Anti-ban logic is mandatory
+
+---
+
+## 4. Order Lifecycle (FSM)
+### 📌 Подсказка (RU)
+Это жизненный цикл одного заказа — от черновика до финала.
+
+draft  
+preview  
+confirmed  
+sending  
+active  
+assigned  
+closed  
+cancelled  
+
+📌 `closed` и `cancelled` — конечные состояния, назад пути нет.
+
+---
+
+## 5. Dispatcher Order Flow
+### 📌 Подсказка (RU)
+Как диспетчер работает с заказом шаг за шагом.
+
+---
+
+### 5.1 Authorization
+- QR-code via Telethon
+- One dispatcher = one Telegram session
+- Session encrypted and monitored
+- Expired session = блокировка отправки
+
+---
+
+### 5.2 Order Creation
+📌 **Без подтверждения заказ НИКОГДА не отправляется**
+
+Steps:
+1. Input
+2. Normalization
+3. Preview
+4. Explicit confirmation
+
+---
+
+### 5.3 Sending Scenarios
+📌 Диспетчер всегда видит, КУДА и КАК пойдёт заказ.
+
+- Saved scenarios
+- By region
+- All groups
+- Manual selection
+
+Before sending show:
+- group list
+- order
+- delays
+- VIP priority
+- risk indicator
+
+---
+
+### 5.4 Anti-Ban Rules
+📌 **Самый критичный раздел**
+
+- Random delays
+- Rate limits
+- FloodWait handling
+- Pause & notify dispatcher
+- Never burst-send
+
+👉 Если есть риск — лучше НЕ отправить, чем потерять аккаунт
+
+---
+
+## 6. Driver Responses
+### 📌 Подсказка (RU)
+Как система понимает, что водитель откликнулся.
+
+- “я”
+- любой reply на заказ
+
+Сохраняем:
+- текст
+- ник
+- имя
+- id
+- группу
+- время
+- телефон (если есть)
+
+---
+
+## 7. Assignment Logic
+### 📌 Подсказка (RU)
+Кому в итоге отдали заказ.
+
+- Только вручную
+- Только из списка откликнувшихся
+- Всегда с подтверждением
+
+Reply в группе:
+✅ Отдан Вам
+
+---
+
+### 7.1 Change of Assigned Driver
+📌 **Смена разрешена, но строго по правилам**
+
+- Только из откликнувшихся
+- Обязательная причина
+- История неизменяема
+
+---
+
+## 8. Editing / Cancelling / Closing
+### 📌 Подсказка (RU)
+Три разных действия — три разных смысла.
+
+- Edit → меняем условия
+- Cancel → заказ отменён
+- Close → заказ выполнен / завершён
+
+Все действия:
+- требуют подтверждения
+- редактируют ВСЕ сообщения в группах
+
+---
+
+## 9. Admin Panel
+### 📌 Подсказка (RU)
+Админ — это «камера наблюдения» за всей системой.
+
+- Видит всех
+- Видит всё
+- Получает все ошибки
+
+---
+
+## 10. Logging & Errors
+### 📌 Подсказка (RU)
+Если что-то сломалось — это должно быть видно.
+
+- info / warning / error / critical
+- Все ошибки → в админку
+- Частичные сбои допустимы, но фиксируются
+
+---
+
+## 11. Mandatory Documentation
+### 📌 Подсказка (RU)
+Если нет документации — проект считается дефектным.
+
+Обязательные файлы:
+- README.md
+- docs/ARCHITECTURE.md
+- docs/FSM.md
+- docs/DATA_MODELS.md
+- docs/LOGGING.md
+- docs/ANTI_BAN.md
+- docs/ADMIN_PANEL.md
+- docs/DEPLOYMENT.md
+
+---
+
+## 12. Full Development Roadmap
+### 📌 Подсказка (RU)
+По этим этапам ты можешь **направлять разработку**.
+
+Stage 1 — Product Discovery ✅  
+Stage 2 — Functional Spec  
+Stage 3 — Architecture  
+Stage 4 — Data Models  
+Stage 5 — API  
+Stage 6 — Core Logic  
+Stage 7 — Admin  
+Stage 8 — Logging  
+Stage 9 — Testing  
+Stage 10 — Deployment  
+
+---
+
+## 13. Final Rule
+### 📌 Подсказка (RU)
+Это правило защищает тебя от «быстрого, но кривого» кода.
+
+❗ Никакой production-код нельзя писать, пока:
+- не пройдены этапы
+- не описана логика
+- не обновлён этот файл
+
+---
+
+## END OF FILE
